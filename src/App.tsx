@@ -263,14 +263,14 @@ export default function App() {
     return [...latestSnapshot.owners]
       .sort((left, right) => Math.abs(right.monthlyChangeShares) - Math.abs(left.monthlyChangeShares))
       .slice(0, 12);
-  }, []);
+  }, [latestSnapshot]);
 
   const latestEntries = useMemo(() => {
     return activeSegments
       .filter((segment) => segment.entryDate !== earliestSnapshot.date)
       .sort((left, right) => right.entryDate.localeCompare(left.entryDate))
       .slice(0, 8);
-  }, [activeSegments]);
+  }, [activeSegments, earliestSnapshot.date]);
 
   const topCoverage = latestSnapshot.top50Percentage;
   const biggestIncrease = [...latestSnapshot.owners].sort(
@@ -291,7 +291,7 @@ export default function App() {
         return current.filter((entry) => entry !== ownerName);
       }
 
-      return [...current, ownerName].slice(-6);
+      return [...current, ownerName];
     });
   }
 
@@ -301,7 +301,7 @@ export default function App() {
         return current;
       }
 
-      return [...current, ownerName].slice(-6);
+      return [...current, ownerName];
     });
 
     requestAnimationFrame(() => {
@@ -334,6 +334,18 @@ export default function App() {
     }
 
     return leaderboardSort.direction === "asc" ? " ↑" : " ↓";
+  }
+
+  function selectAllOwners() {
+    setSelectedOwners(currentDataset.owners.map((owner) => owner.owner));
+  }
+
+  function selectCurrentOwners() {
+    setSelectedOwners(currentOwners.map((owner) => owner.owner));
+  }
+
+  function clearSelectedOwners() {
+    setSelectedOwners([]);
   }
 
   return (
@@ -430,6 +442,29 @@ export default function App() {
           <div className="mb-3">
             <h2 className="font-display text-xl font-semibold text-slate-950">{copy.sections.ownerPickerTitle}</h2>
             <p className="text-xs text-slate-500">{copy.sections.ownerPickerDescription}</p>
+          </div>
+          <div className="mb-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={selectAllOwners}
+              className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 transition hover:border-ocean/40 hover:text-ocean"
+            >
+              {copy.sections.selectAllOwners}
+            </button>
+            <button
+              type="button"
+              onClick={selectCurrentOwners}
+              className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 transition hover:border-ocean/40 hover:text-ocean"
+            >
+              {copy.sections.selectCurrentOwners}
+            </button>
+            <button
+              type="button"
+              onClick={clearSelectedOwners}
+              className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-semibold text-slate-700 transition hover:border-rose-300 hover:text-rose-700"
+            >
+              {copy.sections.clearOwnerSelection}
+            </button>
           </div>
           <label className="mb-3 block">
             <span className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">

@@ -6,6 +6,7 @@ import { z } from "zod";
 const stocksDir = "stocks";
 const outputDir = "src/generated";
 const outputFile = join(outputDir, "shareholder-data.json");
+const supportedExtensions = [".xls", ".xlsx"];
 
 const companySchema = z.object({
   id: z.string(),
@@ -102,40 +103,84 @@ function parseSnapshot(filePath: string, fileName: string): ParsedSnapshot {
     defval: "",
   });
 
-  const dateCell = String(rows[1]?.[1] ?? "").trim();
-  const headerRowIndex = rows.findIndex((row) => row[2] === "Osakkeenomistajat");
+  const optomedHeaderRowIndex = rows.findIndex((row) => row[2] === "Osakkeenomistajat");
 
-  if (!dateCell || headerRowIndex === -1) {
-    throw new Error(`Could not parse date or header row from ${fileName}`);
+  if (optomedHeaderRowIndex !== -1) {
+    const dateCell = String(rows[1]?.[1] ?? "").trim();
+
+    if (!dateCell) {
+      throw new Error(`Could not parse snapshot date from ${fileName}`);
+    }
+
+    const owners = rows
+      .slice(optomedHeaderRowIndex + 1)
+      .map((row) => {
+        const rank = parseNumber(row[1]);
+        const owner = normalizeOwner(row[2]);
+
+        if (!rank || !owner) return null;
+
+        return {
+          owner,
+          rank,
+          shares: parseNumber(row[3]),
+          percentage: parseNumber(row[4]),
+          monthlyChangeShares: parseNumber(row[5]),
+          monthlyChangePercentage: parseNumber(row[6]),
+        };
+      })
+      .filter((row): row is z.infer<typeof snapshotOwnerSchema> => row !== null)
+      .sort((left, right) => left.rank - right.rank);
+
+    return snapshotSchema.parse({
+      date: dateCell,
+      fileName,
+      owners,
+      top50Shares: owners.reduce((sum, owner) => sum + owner.shares, 0),
+      top50Percentage: owners.reduce((sum, owner) => sum + owner.percentage, 0),
+    });
   }
 
-  const owners = rows
-    .slice(headerRowIndex + 1)
-    .map((row) => {
-      const rank = parseNumber(row[1]);
-      const owner = normalizeOwner(row[2]);
+  const ownerListHeader = rows[0] ?? [];
+  const isOwnerListFormat = ownerListHeader[0] === "Sijoitus" && ownerListHeader[1] === "Nimi";
 
-      if (!rank || !owner) return null;
+  if (isOwnerListFormat) {
+    const owners = rows
+      .slice(1)
+      .map((row) => {
+        const rank = parseNumber(row[0]);
+        const owner = normalizeOwner(row[1]);
 
-      return {
-        owner,
-        rank,
-        shares: parseNumber(row[3]),
-        percentage: parseNumber(row[4]),
-        monthlyChangeShares: parseNumber(row[5]),
-        monthlyChangePercentage: parseNumber(row[6]),
-      };
-    })
-    .filter((row): row is z.infer<typeof snapshotOwnerSchema> => row !== null)
-    .sort((left, right) => left.rank - right.rank);
+        if (!rank || !owner) return null;
 
-  return snapshotSchema.parse({
-    date: dateCell,
-    fileName,
-    owners,
-    top50Shares: owners.reduce((sum, owner) => sum + owner.shares, 0),
-    top50Percentage: owners.reduce((sum, owner) => sum + owner.percentage, 0),
-  });
+        return {
+          owner,
+          rank,
+          shares: parseNumber(row[3]),
+          percentage: parseNumber(row[5]) * 100,
+          monthlyChangeShares: parseNumber(row[4]),
+          monthlyChangePercentage: 0,
+        };
+      })
+      .filter((row): row is z.infer<typeof snapshotOwnerSchema> => row !== null)
+      .sort((left, right) => left.rank - right.rank);
+
+    const dateCell = String(rows[1]?.[7] ?? "").trim();
+
+    if (!dateCell) {
+      throw new Error(`Could not parse snapshot date from ${fileName}`);
+    }
+
+    return snapshotSchema.parse({
+      date: dateCell,
+      fileName,
+      owners,
+      top50Shares: owners.reduce((sum, owner) => sum + owner.shares, 0),
+      top50Percentage: owners.reduce((sum, owner) => sum + owner.percentage, 0),
+    });
+  }
+
+  throw new Error(`Could not recognize shareholder workbook format: ${fileName}`);
 }
 
 async function discoverCompanies() {
@@ -149,7 +194,7 @@ async function discoverCompanies() {
 
     try {
       const files = await readdir(join(stocksDir, entry.name));
-      if (files.some((fileName) => fileName.endsWith(".xls"))) {
+      if (files.some((fileName) => supportedExtensions.some((extension) => fileName.endsWith(extension)))) {
         companyIds.push(entry.name);
       }
     } catch {
@@ -234,7 +279,7 @@ const companies = companyIds.map((companyId) => {
 const parsedDatasets = await Promise.all(
   companies.map(async ({ company, shareholderDir }) => {
     const fileNames = (await readdir(shareholderDir))
-      .filter((fileName) => fileName.endsWith(".xls"))
+      .filter((fileName) => supportedExtensions.some((extension) => fileName.endsWith(extension)))
       .sort();
 
     const snapshots = fileNames.map((fileName) =>
