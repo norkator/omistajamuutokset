@@ -20,5 +20,5 @@ Build lukee yhtiökohtaiset Excel-tiedostot kansioista kuten `optomed/shareholde
 
 ## GitHub Pages
 
-Repo sisältää GitHub Actions -workflow'n, joka buildaa ja deployaa `dist/`-kansion GitHub Pagesiin pushista `main`- tai
-`master`-haaraan. `Dockerfile` ja `nginx.conf` säilyvät repossa mahdollista myöhempää container-deployta varten.
+Repo sisältää GitHub Actions -workflow'n, joka buildaa ja deployaa `dist/`-kansion GitHub Pagesiin pushista
+`main`-haaraan. `Dockerfile` ja `nginx.conf` säilyvät repossa mahdollista myöhempää container-deployta varten.
