@@ -15,7 +15,7 @@ bun run dev
 bun run build
 ```
 
-Build lukee yhtiökohtaiset Excel-tiedostot kansioista kuten `optomed/shareholder_files/` ja generoi staattisen sivun
+Build lukee yhtiökohtaiset Excel-tiedostot kansioista kuten `stocks/optomed/` ja generoi staattisen sivun
 `dist/`-kansioon.
 
 ## GitHub Pages

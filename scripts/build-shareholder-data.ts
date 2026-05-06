@@ -3,7 +3,7 @@ import { basename, join } from "node:path";
 import * as XLSX from "xlsx";
 import { z } from "zod";
 
-const shareholderDirName = "shareholder_files";
+const stocksDir = "stocks";
 const outputDir = "src/generated";
 const outputFile = join(outputDir, "shareholder-data.json");
 
@@ -139,7 +139,7 @@ function parseSnapshot(filePath: string, fileName: string): ParsedSnapshot {
 }
 
 async function discoverCompanies() {
-  const entries = await readdir(".", { withFileTypes: true });
+  const entries = await readdir(stocksDir, { withFileTypes: true });
   const companyIds: string[] = [];
 
   for (const entry of entries) {
@@ -148,7 +148,7 @@ async function discoverCompanies() {
     }
 
     try {
-      const files = await readdir(join(entry.name, shareholderDirName));
+      const files = await readdir(join(stocksDir, entry.name));
       if (files.some((fileName) => fileName.endsWith(".xls"))) {
         companyIds.push(entry.name);
       }
@@ -218,7 +218,7 @@ function buildDataset(company: z.infer<typeof companySchema>, snapshots: ParsedS
 const companyIds = await discoverCompanies();
 
 if (companyIds.length === 0) {
-  throw new Error(`No company folders with ${shareholderDirName}/*.xls found in the project root.`);
+  throw new Error(`No company folders with .xls files found under ${stocksDir}/.`);
 }
 
 const companies = companyIds.map((companyId) => {
@@ -226,7 +226,7 @@ const companies = companyIds.map((companyId) => {
     id: companyId,
     name: formatCompanyName(companyId),
   });
-  const shareholderDir = join(companyId, shareholderDirName);
+  const shareholderDir = join(stocksDir, companyId);
 
   return { company, shareholderDir };
 });
